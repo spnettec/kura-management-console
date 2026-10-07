@@ -160,6 +160,16 @@
         <div v-else class="state-box">{{ t('gateway.noNetworkData') }}</div>
       </section>
 
+      <section class="detail-panel config-panel-section">
+        <h2>{{ t('gateway.config') }}</h2>
+        <ConfigPanel :gateway-id="gateway.gatewayId" />
+      </section>
+
+      <section class="detail-panel snapshot-panel-section">
+        <h2>{{ t('gateway.snapshots') }}</h2>
+        <SnapshotPanel :gateway-id="gateway.gatewayId" />
+      </section>
+
       <section class="detail-panel heartbeat-panel">
         <h2>{{ t('gateway.heartbeats') }}</h2>
         <div v-if="heartbeats.length === 0" class="state-box">{{ t('gateway.noHeartbeats') }}</div>
@@ -212,6 +222,8 @@ import StatusPill from '@/components/StatusPill.vue'
 import FirewallRulesView, { type FirewallConfigPayload } from '@/components/FirewallRulesView.vue'
 import RefreshNotice from '@/components/RefreshNotice.vue'
 import NetworkStatusView, { type NetworkConfigPayload } from '@/components/NetworkStatusView.vue'
+import ConfigPanel from '@/components/ConfigPanel.vue'
+import SnapshotPanel from '@/components/SnapshotPanel.vue'
 import { createCommand, fetchCommand, fetchCommands, type CommandListItem } from '@/api/commands'
 import {
   fetchGateway,

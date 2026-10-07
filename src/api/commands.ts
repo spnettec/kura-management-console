@@ -60,3 +60,25 @@ export function createCommand(payload: {
     body: JSON.stringify(payload),
   })
 }
+
+const PENDING_STATUSES = new Set(['queued', 'sent', 'running'])
+
+/**
+ * Sends a command and polls until the gateway reply settles the status
+ * (success/failed/timeout/rejected) or the timeout elapses.
+ */
+export async function createCommandAndWait(
+  payload: { gatewayId: string; type: string; payload: Record<string, unknown> },
+  timeoutMs = 15000,
+): Promise<CommandDetailItem> {
+  const created = await createCommand(payload)
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const detail = await fetchCommand(created.commandId)
+    if (!PENDING_STATUSES.has(detail.status)) {
+      return detail
+    }
+  }
+  throw new Error(`Command ${created.commandId} did not finish in time`)
+}
