@@ -8,12 +8,14 @@ export const messages = {
     nav: {
       gateways: '网关',
       commands: '命令',
+      logout: '退出',
     },
     auth: {
       signIn: '登录',
       username: '用户名',
       password: '密码',
       submit: '登录',
+      loginFailed: '登录失败，请检查用户名或密码',
     },
     common: {
       loading: '加载中...',
@@ -225,12 +227,14 @@ export const messages = {
     nav: {
       gateways: 'Gateways',
       commands: 'Commands',
+      logout: 'Sign out',
     },
     auth: {
       signIn: 'Sign in',
       username: 'Username',
       password: 'Password',
       submit: 'Login',
+      loginFailed: 'Login failed, check username or password',
     },
     common: {
       loading: 'Loading...',

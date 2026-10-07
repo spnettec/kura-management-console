@@ -5,6 +5,7 @@ import GatewayListPage from '@/pages/GatewayListPage.vue'
 import GatewayDetailPage from '@/pages/GatewayDetailPage.vue'
 import CommandListPage from '@/pages/CommandListPage.vue'
 import CommandDetailPage from '@/pages/CommandDetailPage.vue'
+import { useAuthStore } from '@/store/auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -22,6 +23,17 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+  if (to.path === '/login') {
+    return auth.isAuthenticated ? '/gateways' : true
+  }
+  if (!auth.isAuthenticated) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  return true
 })
 
 export default router
