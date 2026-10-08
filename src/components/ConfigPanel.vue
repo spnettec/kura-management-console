@@ -130,7 +130,7 @@ async function loadConfig(pid: string) {
   message.value = ''
   try {
     const reply = await run('config.get', { pid })
-    const configurations = (reply.configurations as Array<{ pid: string; properties?: Record<string, KuraProperty> }>) ?? []
+    const configurations = (reply.configs as Array<{ pid: string; properties?: Record<string, KuraProperty> }>) ?? []
     const configuration = configurations.find((c) => c.pid === pid) ?? configurations[0]
     const properties = configuration?.properties ?? {}
     const fields: Record<string, EditableField> = {}
