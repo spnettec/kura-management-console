@@ -1,33 +1,57 @@
 <template>
   <section class="command-detail">
-    <h2>{{ t('command.details') }} {{ command.commandId }}</h2>
-    <div class="timeline">
-      <h3>{{ t('command.events') }}</h3>
-      <ol>
-        <li v-for="event in command.events" :key="event.eventId">
-          <span class="timeline-time">{{ formatTime(event.createdAt) }}</span>
-          <strong>{{ t(`command.eventTypes.${event.eventType}`, event.eventType) }}</strong>
-          <span>{{ event.message ?? '-' }}</span>
-        </li>
-      </ol>
-    </div>
+    <a-descriptions :column="3" size="small" bordered style="margin-bottom: 16px">
+      <a-descriptions-item :label="t('command.fields.commandId')">
+        <a-tag>{{ command.commandId }}</a-tag>
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('command.fields.gateway')">
+        <RouterLink :to="`/gateways/${command.gatewayId}`">{{ command.gatewayId }}</RouterLink>
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('command.fields.type')">
+        <a-tag color="blue">{{ command.type }}</a-tag>
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('command.fields.initiator')">{{ command.initiator ?? '-' }}</a-descriptions-item>
+      <a-descriptions-item :label="t('command.fields.requested')">{{ formatTime(command.requestedAt) }}</a-descriptions-item>
+      <a-descriptions-item :label="t('command.fields.finished')">{{ formatTime(command.finishedAt) }}</a-descriptions-item>
+    </a-descriptions>
+
+    <a-card size="small" :title="t('command.events')" style="margin-bottom: 16px">
+      <a-timeline v-if="command.events.length" style="margin-top: 8px">
+        <a-timeline-item
+          v-for="event in command.events"
+          :key="event.eventId"
+          :color="eventColor(event.eventType)"
+        >
+          <div class="event-line">
+            <strong>{{ t(`command.eventTypes.${event.eventType}`, event.eventType) }}</strong>
+            <span class="event-time">{{ formatTime(event.createdAt) }}</span>
+          </div>
+          <div class="event-message">{{ event.message ?? '-' }}</div>
+        </a-timeline-item>
+      </a-timeline>
+      <a-empty v-else :image-style="{ height: '40px' }" />
+    </a-card>
+
     <div class="json-grid">
-      <div>
-        <h3>{{ t('command.requestPayload') }}</h3>
+      <a-card size="small" :title="t('command.requestPayload')">
         <pre>{{ formatJson(command.requestPayload) }}</pre>
-      </div>
-      <div>
-        <h3>{{ t('command.replyPayload') }}</h3>
+      </a-card>
+      <a-card size="small" :title="t('command.replyPayload')">
         <pre>{{ command.replyPayload ? formatJson(command.replyPayload) : t('command.noReply') }}</pre>
-      </div>
+      </a-card>
     </div>
-    <FirewallRulesView v-if="firewallConfig" :config="firewallConfig" />
-    <NetworkStatusView v-if="networkConfig" :config="networkConfig" />
+
+    <template v-if="firewallConfig || networkConfig">
+      <a-divider />
+      <FirewallRulesView v-if="firewallConfig" :config="firewallConfig" />
+      <NetworkStatusView v-if="networkConfig" :config="networkConfig" />
+    </template>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { CommandDetailItem } from '@/api/commands'
 import FirewallRulesView, { type FirewallConfigPayload } from '@/components/FirewallRulesView.vue'
@@ -54,6 +78,12 @@ const networkConfig = computed(() => {
   }
   return null
 })
+
+function eventColor(eventType: string) {
+  if (eventType === 'success') return 'green'
+  if (eventType === 'failed' || eventType === 'timeout' || eventType === 'rejected') return 'red'
+  return 'blue'
+}
 
 function formatTime(value?: string | number | null) {
   if (!value) {
@@ -88,52 +118,37 @@ function isNetworkConfigPayload(value: unknown): value is NetworkConfigPayload {
 </script>
 
 <style scoped>
-.command-detail {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  margin-top: 16px;
-  padding: 16px;
-}
-
 .json-grid {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
-.timeline {
-  border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
-}
-
-.timeline ol {
-  display: grid;
-  gap: 8px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.timeline li {
-  align-items: center;
-  display: grid;
+.event-line {
+  align-items: baseline;
+  display: flex;
   gap: 10px;
-  grid-template-columns: 180px 90px 1fr;
 }
 
-.timeline-time {
-  color: #6b7280;
+.event-time {
+  color: #8c8c8c;
   font-size: 12px;
 }
 
+.event-message {
+  color: #595959;
+  font-size: 13px;
+}
+
 pre {
-  background: #111827;
+  background: #0f172a;
   border-radius: 6px;
-  color: #f9fafb;
+  color: #e5e7eb;
   margin: 0;
+  max-height: 320px;
   overflow: auto;
   padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

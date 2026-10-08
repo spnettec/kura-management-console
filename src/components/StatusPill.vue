@@ -1,5 +1,5 @@
 <template>
-  <span class="status-pill" :data-status="status">{{ label }}</span>
+  <a-badge :status="badgeStatus" :text="label" />
 </template>
 
 <script setup lang="ts">
@@ -13,4 +13,9 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const label = computed(() => t(`status.${props.status}`))
+const badgeStatus = computed(() => {
+  if (props.status === 'online') return 'success' as const
+  if (props.status === 'offline') return 'error' as const
+  return 'default' as const
+})
 </script>

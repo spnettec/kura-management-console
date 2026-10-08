@@ -1,20 +1,31 @@
 <template>
   <main class="page-shell login-shell">
-    <section class="login-card">
-      <h1>{{ t('auth.signIn') }}</h1>
-      <form class="login-form" @submit.prevent="submit">
-        <label>
-          <span>{{ t('auth.username') }}</span>
-          <input v-model="username" type="text" autocomplete="username" />
-        </label>
-        <label>
-          <span>{{ t('auth.password') }}</span>
-          <input v-model="password" type="password" autocomplete="current-password" />
-        </label>
-        <p v-if="error" class="login-error">{{ error }}</p>
-        <button type="submit" :disabled="submitting">{{ t('auth.submit') }}</button>
-      </form>
-    </section>
+    <a-card class="login-card" :bordered="false">
+      <div class="login-brand">
+        <span class="brand-dot"></span>
+        <h1>{{ t('app.brand') }}</h1>
+      </div>
+      <a-form layout="vertical" @finish="submit">
+        <a-form-item :label="t('auth.username')" name="username">
+          <a-input v-model:value="username" size="large" :autocomplete="['username']">
+            <template #prefix><UserOutlined style="color: rgba(0, 0, 0, 0.35)" /></template>
+          </a-input>
+        </a-form-item>
+        <a-form-item :label="t('auth.password')" name="password">
+          <a-input-password v-model:value="password" size="large" autocomplete="current-password" />
+        </a-form-item>
+        <a-alert
+          v-if="error"
+          :message="error"
+          type="error"
+          show-icon
+          style="margin-bottom: 16px"
+        />
+        <a-button type="primary" size="large" block :loading="submitting" @click="submit">
+          {{ t('auth.submit') }}
+        </a-button>
+      </a-form>
+    </a-card>
   </main>
 </template>
 
@@ -22,6 +33,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { UserOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/store/auth'
 
 const { t } = useI18n()
@@ -54,51 +66,35 @@ async function submit() {
 <style scoped>
 .login-shell {
   align-items: center;
+  background: linear-gradient(160deg, #f5f7fa 0%, #e4ecf7 100%);
   display: grid;
   min-height: 100vh;
   place-items: center;
 }
 
 .login-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  min-width: 320px;
-  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(17, 24, 39, 0.08);
+  min-width: 360px;
 }
 
-.login-form {
-  display: grid;
-  gap: 12px;
+.login-brand {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
-label {
-  display: grid;
-  gap: 6px;
-}
-
-input,
-button {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font: inherit;
-  padding: 10px 12px;
-}
-
-button {
-  background: #111827;
-  color: #fff;
-  cursor: pointer;
-}
-
-button:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
-.login-error {
-  color: #b91c1c;
-  font-size: 13px;
+.login-brand h1 {
+  font-size: 20px;
   margin: 0;
+}
+
+.brand-dot {
+  background: #1677ff;
+  border-radius: 4px;
+  display: inline-block;
+  height: 18px;
+  width: 18px;
 }
 </style>

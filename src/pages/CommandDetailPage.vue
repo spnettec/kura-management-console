@@ -1,10 +1,12 @@
 <template>
   <main class="page-shell">
-    <h1>{{ t('command.detailTitle') }}</h1>
     <RefreshNotice :message="refreshError" />
-    <div v-if="loading" class="state-box">{{ t('command.loadingDetail') }}</div>
-    <div v-else-if="error" class="state-box">{{ error }}</div>
-    <CommandDetailPanel v-else-if="command" :command="command" />
+    <a-card size="small">
+      <template #title>{{ t('command.detailTitle') }}</template>
+      <a-skeleton v-if="loading" active :paragraph="{ rows: 4 }" />
+      <a-result v-else-if="error" status="warning" :title="error" />
+      <CommandDetailPanel v-else-if="command" :command="command" />
+    </a-card>
   </main>
 </template>
 

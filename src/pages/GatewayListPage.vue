@@ -1,89 +1,90 @@
 <template>
   <main class="page-shell">
-    <h1>{{ t('gateway.listTitle') }}</h1>
     <RefreshNotice :message="refreshError" />
+
     <div class="summary-grid">
-      <button type="button" @click="setStatusFilter('')">
-        <span>{{ t('gateway.summaryFields.total') }}</span>
-        <strong>{{ summary.total }}</strong>
-      </button>
-      <button type="button" @click="setStatusFilter('online')">
-        <span>{{ t('status.online') }}</span>
-        <strong>{{ summary.online }}</strong>
-      </button>
-      <button type="button" @click="setStatusFilter('offline')">
-        <span>{{ t('status.offline') }}</span>
-        <strong>{{ summary.offline }}</strong>
-      </button>
-      <button type="button" @click="setStatusFilter('unknown')">
-        <span>{{ t('status.unknown') }}</span>
-        <strong>{{ summary.unknown }}</strong>
-      </button>
+      <a-card v-for="card in summaryCards" :key="card.key" size="small" hoverable @click="setStatusFilter(card.filter)">
+        <a-statistic :title="card.title" :value="card.value" :value-style="{ color: card.color }" />
+      </a-card>
     </div>
-    <div class="filter-bar">
-      <label>
-        <span>{{ t('gateway.fields.status') }}</span>
-        <select v-model="statusFilter" @change="loadGateways()">
-          <option value="">{{ t('gateway.filters.allStatuses') }}</option>
-          <option value="online">{{ t('status.online') }}</option>
-          <option value="offline">{{ t('status.offline') }}</option>
-          <option value="unknown">{{ t('status.unknown') }}</option>
-        </select>
-      </label>
-    </div>
-    <form class="create-form" @submit.prevent="submitGateway">
-      <label>
-        <span>{{ t('gateway.fields.gatewayId') }}</span>
-        <input v-model="newGateway.gatewayId" required />
-      </label>
-      <label>
-        <span>{{ t('gateway.fields.name') }}</span>
-        <input v-model="newGateway.name" />
-      </label>
-      <button type="submit" :disabled="creatingGateway">{{ t('gateway.create') }}</button>
-    </form>
-    <p v-if="createMessage" class="form-message">{{ createMessage }}</p>
-    <div v-if="loading" class="state-box">{{ t('gateway.loadingList') }}</div>
-    <div v-else-if="error" class="state-box">{{ error }}</div>
-    <div v-else>
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>{{ t('gateway.fields.name') }}</th>
-            <th>{{ t('gateway.fields.gatewayId') }}</th>
-            <th>{{ t('gateway.fields.status') }}</th>
-            <th>{{ t('gateway.fields.enabled') }}</th>
-            <th>{{ t('gateway.fields.lastSeen') }}</th>
-            <th>{{ t('gateway.fields.kura') }}</th>
-            <th>{{ t('gateway.fields.os') }}</th>
-            <th>{{ t('gateway.fields.ip') }}</th>
-            <th>{{ t('gateway.fields.config') }}</th>
-            <th>{{ t('gateway.fields.alerts') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in gateways" :key="item.gatewayId">
-            <td><RouterLink :to="`/gateways/${item.gatewayId}`">{{ item.name }}</RouterLink></td>
-            <td>{{ item.gatewayId }}</td>
-            <td><StatusPill :status="item.status" /></td>
-            <td>{{ item.enabled ? t('common.yes') : t('common.no') }}</td>
-            <td>{{ formatTime(item.lastSeenAt) }}</td>
-            <td>{{ item.kuraVersion ?? '-' }}</td>
-            <td>{{ item.osVersion ?? '-' }}</td>
-            <td>{{ item.ipAddrs.join(', ') || '-' }}</td>
-            <td>{{ item.configRevision ?? '-' }}</td>
-            <td>{{ item.alertCount }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+
+    <a-card size="small" class="table-card">
+      <template #title>
+        {{ t('gateway.listTitle') }}
+        <a-tag v-if="statusFilter" closable @close="setStatusFilter('')">{{ statusLabel(statusFilter) }}</a-tag>
+      </template>
+      <template #extra>
+        <a-space>
+          <a-select
+            v-model:value="statusFilter"
+            :placeholder="t('gateway.filters.allStatuses')"
+            allow-clear
+            style="width: 160px"
+            :options="statusOptions"
+            @change="loadGateways()"
+          />
+          <a-button type="primary" @click="createOpen = true">
+            <template #icon><PlusOutlined /></template>
+            {{ t('gateway.create') }}
+          </a-button>
+          <a-button :loading="loading" @click="loadGateways()">
+            <template #icon><ReloadOutlined /></template>
+          </a-button>
+        </a-space>
+      </template>
+
+      <a-table
+        :data-source="gateways"
+        :columns="columns"
+        :loading="loading"
+        :pagination="{ pageSize: 15, hideOnSinglePage: true }"
+        row-key="gatewayId"
+        size="middle"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'name'">
+            <RouterLink :to="`/gateways/${record.gatewayId}`">{{ record.name }}</RouterLink>
+          </template>
+          <template v-else-if="column.key === 'status'">
+            <StatusPill :status="record.status" />
+          </template>
+          <template v-else-if="column.key === 'enabled'">
+            <a-switch :checked="record.enabled" size="small" disabled />
+          </template>
+          <template v-else-if="column.key === 'lastSeenAt'">
+            {{ formatTime(record.lastSeenAt) }}
+          </template>
+          <template v-else-if="column.key === 'ipAddrs'">
+            {{ record.ipAddrs.join(', ') || '-' }}
+          </template>
+        </template>
+      </a-table>
+    </a-card>
+
+    <a-modal
+      v-model:open="createOpen"
+      :title="t('gateway.create')"
+      :confirm-loading="creatingGateway"
+      @ok="submitGateway"
+    >
+      <a-form layout="vertical">
+        <a-form-item :label="t('gateway.fields.gatewayId')" required>
+          <a-input v-model:value="newGateway.gatewayId" placeholder="gw-002" />
+        </a-form-item>
+        <a-form-item :label="t('gateway.fields.name')">
+          <a-input v-model:value="newGateway.name" />
+        </a-form-item>
+      </a-form>
+      <a-alert v-if="createMessage" :message="createMessage" type="info" show-icon />
+    </a-modal>
   </main>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import StatusPill from '@/components/StatusPill.vue'
 import RefreshNotice from '@/components/RefreshNotice.vue'
 import {
@@ -106,7 +107,8 @@ const summary = ref<GatewaySummary>({
 const loading = ref(false)
 const error = ref<string | null>(null)
 const refreshError = ref<string | null>(null)
-const statusFilter = ref<GatewayStatus | ''>('')
+const statusFilter = ref<GatewayStatus | undefined>(undefined)
+const createOpen = ref(false)
 const creatingGateway = ref(false)
 const createMessage = ref<string | null>(null)
 const newGateway = ref({
@@ -114,6 +116,33 @@ const newGateway = ref({
   name: '',
 })
 let refreshTimer: number | undefined
+
+const summaryCards = computed(() => [
+  { key: 'total', title: t('gateway.summaryFields.total'), value: summary.value.total, color: '#1f2328', filter: '' as const },
+  { key: 'online', title: t('status.online'), value: summary.value.online, color: '#389e0d', filter: 'online' as const },
+  { key: 'offline', title: t('status.offline'), value: summary.value.offline, color: '#cf1322', filter: 'offline' as const },
+  { key: 'unknown', title: t('status.unknown'), value: summary.value.unknown, color: '#8c8c8c', filter: 'unknown' as const },
+])
+
+const statusOptions = [
+  { value: 'online', label: t('status.online') },
+  { value: 'offline', label: t('status.offline') },
+  { value: 'unknown', label: t('status.unknown') },
+]
+
+const columns = computed(() => [
+  { title: t('gateway.fields.name'), key: 'name' },
+  { title: t('gateway.fields.gatewayId'), dataIndex: 'gatewayId', key: 'gatewayId' },
+  { title: t('gateway.fields.status'), key: 'status', width: 110 },
+  { title: t('gateway.fields.enabled'), key: 'enabled', width: 90 },
+  { title: t('gateway.fields.lastSeen'), key: 'lastSeenAt', width: 170 },
+  { title: t('gateway.fields.kura'), dataIndex: 'kuraVersion', key: 'kuraVersion', ellipsis: true },
+  { title: t('gateway.fields.ip'), key: 'ipAddrs', ellipsis: true },
+])
+
+function statusLabel(status: GatewayStatus) {
+  return t(`status.${status}`)
+}
 
 function formatTime(value?: string | number | null) {
   if (!value) {
@@ -129,7 +158,7 @@ async function loadGateways(options: { silent?: boolean } = {}) {
   }
   try {
     const [response, summaryResponse] = await Promise.all([
-      fetchGateways({ status: statusFilter.value }),
+      fetchGateways({ status: statusFilter.value ?? '' }),
       fetchGatewaySummary(),
     ])
     gateways.value = response.items
@@ -150,11 +179,12 @@ async function loadGateways(options: { silent?: boolean } = {}) {
 }
 
 function setStatusFilter(status: GatewayStatus | '') {
-  statusFilter.value = status
+  statusFilter.value = status || undefined
   void loadGateways()
 }
 
 async function submitGateway() {
+  if (!newGateway.value.gatewayId) return
   creatingGateway.value = true
   createMessage.value = null
   try {
@@ -164,6 +194,7 @@ async function submitGateway() {
     })
     createMessage.value = t('gateway.created')
     newGateway.value = { gatewayId: '', name: '' }
+    createOpen.value = false
     await loadGateways()
   } catch (err) {
     createMessage.value = err instanceof Error ? err.message : t('gateway.createFailed')
@@ -187,114 +218,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.data-table {
-  border-collapse: collapse;
-  margin-top: 16px;
-  width: 100%;
-}
-
 .summary-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-bottom: 16px;
 }
 
-.summary-grid button {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  cursor: pointer;
-  display: grid;
-  gap: 6px;
-  padding: 14px;
-  text-align: left;
-}
-
-.summary-grid span {
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.summary-grid strong {
-  color: #111827;
-  font-size: 24px;
-}
-
-.filter-bar {
-  align-items: end;
-  display: flex;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.filter-bar label {
-  display: grid;
-  gap: 6px;
-  min-width: 220px;
-}
-
-.filter-bar select {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font: inherit;
-  min-height: 38px;
-  padding: 8px 10px;
-}
-
-.create-form {
-  align-items: end;
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) auto;
-  margin-top: 12px;
-}
-
-.create-form label {
-  display: grid;
-  gap: 6px;
-}
-
-.create-form input {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font: inherit;
-  min-height: 38px;
-  padding: 8px 10px;
-}
-
-.create-form button {
-  background: #111827;
-  border: 1px solid #111827;
-  border-radius: 4px;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  min-height: 38px;
-  padding: 8px 14px;
-}
-
-.form-message {
-  color: #374151;
-}
-
-.data-table th,
-.data-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 10px 8px;
-  text-align: left;
-  vertical-align: middle;
-}
-
-.data-table th {
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.data-table a {
-  color: #2563eb;
-  text-decoration: none;
+.table-card {
+  border-radius: 8px;
 }
 </style>

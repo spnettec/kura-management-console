@@ -1,65 +1,68 @@
 <template>
   <div class="config-panel">
     <div class="panel-heading">
-      <button type="button" :disabled="busy" @click="loadConfigList">
+      <a-button type="primary" size="small" :loading="busy" @click="loadConfigList">
+        <template #icon><ReloadOutlined /></template>
         {{ t('config.loadList') }}
-      </button>
+      </a-button>
     </div>
 
-    <p v-if="message" class="action-message">{{ message }}</p>
+    <a-alert v-if="message" :message="message" type="info" show-icon closable style="margin-bottom: 12px" />
 
-    <table v-if="configs.length" class="data-table">
-      <thead>
-        <tr>
-          <th>{{ t('config.pid') }}</th>
-          <th>{{ t('config.factoryPid') }}</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="item in configs" :key="item.pid" :class="{ selected: item.pid === selectedPid }">
-          <td>{{ item.pid }}</td>
-          <td>{{ item.factoryPid || '-' }}</td>
-          <td>
-            <button type="button" :disabled="busy" @click="loadConfig(item.pid)">
-              {{ t('config.edit') }}
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <a-table
+      v-if="configs.length"
+      :data-source="configs"
+      :columns="columns"
+      :loading="busy"
+      :pagination="{ pageSize: 10, hideOnSinglePage: true }"
+      row-key="pid"
+      size="small"
+    >
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'pid'">
+          <a-tag>{{ record.pid }}</a-tag>
+        </template>
+        <template v-else-if="column.key === 'factoryPid'">
+          {{ record.factoryPid || '-' }}
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-button size="small" type="link" :disabled="busy" @click="loadConfig(record.pid)">
+            {{ t('config.edit') }}
+          </a-button>
+        </template>
+      </template>
+    </a-table>
 
-    <div v-if="editing" class="config-editor">
-      <h3>{{ selectedPid }}</h3>
-      <p v-if="!Object.keys(editValues).length" class="action-message">{{ t('config.noProperties') }}</p>
-      <div v-for="(entry, name) in editValues" :key="name" class="config-field">
-        <label>
-          <span class="field-name">{{ name }} <em>({{ entry.type }})</em></span>
-          <input
+    <a-card v-if="editing" size="small" class="config-editor" :title="selectedPid">
+      <template #extra>
+        <a-space>
+          <a-button size="small" :disabled="busy" @click="closeEditor">{{ t('config.cancel') }}</a-button>
+          <a-button size="small" type="primary" :loading="busy" @click="saveConfig">
+            {{ t('config.save') }}
+          </a-button>
+        </a-space>
+      </template>
+      <a-empty v-if="!Object.keys(editValues).length" :description="t('config.noProperties')" />
+      <div class="config-fields">
+        <div v-for="(entry, name) in editValues" :key="name" class="config-field">
+          <span class="field-name">{{ name }} <a-tag style="margin-left: 4px">{{ entry.type }}</a-tag></span>
+          <a-input-password
             v-if="isPasswordField(entry)"
-            v-model="entry.text"
-            type="password"
+            v-model:value="entry.text"
             :placeholder="t('config.passwordPlaceholder')"
             autocomplete="new-password"
           />
-          <input v-else v-model="entry.text" type="text" />
-        </label>
+          <a-input v-else v-model:value="entry.text" />
+        </div>
       </div>
-      <div class="action-grid">
-        <button type="button" :disabled="busy" @click="saveConfig">
-          {{ t('config.save') }}
-        </button>
-        <button type="button" :disabled="busy" @click="closeEditor">
-          {{ t('config.cancel') }}
-        </button>
-      </div>
-    </div>
+    </a-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ReloadOutlined } from '@ant-design/icons-vue'
 import { createCommandAndWait } from '@/api/commands'
 
 interface ConfigDescriptor {
@@ -91,6 +94,12 @@ const configs = ref<ConfigDescriptor[]>([])
 const selectedPid = ref('')
 const editing = ref(false)
 const editValues = ref<Record<string, EditableField>>({})
+
+const columns = computed(() => [
+  { title: t('config.pid'), key: 'pid', ellipsis: true },
+  { title: t('config.factoryPid'), key: 'factoryPid', ellipsis: true },
+  { title: '', key: 'action', width: 80 },
+])
 
 function toText(value: unknown): string {
   if (value === null || value === undefined) return ''
@@ -204,34 +213,21 @@ function closeEditor() {
   justify-content: flex-end;
 }
 
-.selected {
-  background: #f0f9ff;
-}
-
 .config-editor {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border-radius: 8px;
+}
+
+.config-fields {
   display: grid;
-  gap: 10px;
-  padding: 14px;
+  gap: 12px;
 }
 
-.config-field label {
+.config-field {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
-.field-name em {
-  color: #6b7280;
-  font-size: 12px;
-  font-style: normal;
-}
-
-input {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font: inherit;
-  font-family: monospace;
-  padding: 6px 8px;
+.field-name {
+  font-weight: 500;
 }
 </style>

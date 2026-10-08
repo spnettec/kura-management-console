@@ -1,216 +1,220 @@
 <template>
   <main class="page-shell">
-    <h1>{{ t('gateway.detailTitle') }}</h1>
     <RefreshNotice :message="refreshError" />
-    <div v-if="loading" class="state-box">{{ t('gateway.loadingDetail') }}</div>
-    <div v-else-if="error" class="state-box">{{ error }}</div>
-    <div v-else-if="gateway" class="detail-grid">
-      <section class="detail-panel">
-        <h2>{{ t('gateway.summary') }}</h2>
-        <dl>
-          <dt>{{ t('gateway.fields.name') }}</dt>
-          <dd>{{ gateway.name }}</dd>
-          <dt>{{ t('gateway.fields.gatewayId') }}</dt>
-          <dd>{{ gateway.gatewayId }}</dd>
-          <dt>{{ t('gateway.fields.status') }}</dt>
-          <dd><StatusPill :status="gateway.status" /></dd>
-          <dt>{{ t('gateway.fields.enabled') }}</dt>
-          <dd>
-            <button type="button" class="inline-button" :disabled="savingGateway" @click="toggleGateway">
-              {{ gateway.enabled ? t('common.enabled') : t('common.disabled') }}
-            </button>
-          </dd>
-          <dt>{{ t('gateway.fields.lastSeen') }}</dt>
-          <dd>{{ formatTime(gateway.lastSeenAt) }}</dd>
-          <dt>{{ t('gateway.fields.kura') }}</dt>
-          <dd>{{ gateway.kuraVersion ?? '-' }}</dd>
-          <dt>{{ t('gateway.fields.os') }}</dt>
-          <dd>{{ gateway.osVersion ?? '-' }}</dd>
-          <dt>{{ t('gateway.fields.ip') }}</dt>
-          <dd>{{ gateway.ipAddrs.join(', ') || '-' }}</dd>
-          <dt>{{ t('gateway.fields.mac') }}</dt>
-          <dd>{{ gateway.macAddrs.join(', ') || '-' }}</dd>
-          <dt>{{ t('gateway.fields.tags') }}</dt>
-          <dd>{{ gateway.tags.join(', ') || '-' }}</dd>
-          <dt>{{ t('gateway.fields.firewall') }}</dt>
-          <dd>
-            {{ translateStatus(gateway.firewallStatus.running ? 'running' : (gateway.firewallStatus.serviceState || (gateway.firewallStatus.enabled ? 'enabled' : 'disabled'))) }}
-            <strong :class="gateway.firewallStatus.healthy ? 'health-ok' : 'health-bad'">
-              {{ gateway.firewallStatus.healthy ? t('status.normal') : t('status.abnormal') }}
-            </strong>
-            <span v-if="gateway.firewallStatus.serviceState">
-              ({{ t('firewall.systemdState') }}: {{ translateStatus(gateway.firewallStatus.systemdState || 'unknown') }})
-            </span>
-          </dd>
-        </dl>
-      </section>
 
-      <section class="detail-panel">
-        <h2>{{ t('gateway.credentials') }}</h2>
-        <div v-if="credentialError" class="state-box">{{ credentialError }}</div>
-        <dl v-else-if="credential">
-          <dt>{{ t('gateway.fields.username') }}</dt>
-          <dd>{{ credential.gatewayId }}</dd>
-          <dt>{{ t('gateway.fields.enabled') }}</dt>
-          <dd>{{ credential.enabled ? t('common.yes') : t('common.no') }}</dd>
-          <dt>{{ t('gateway.fields.createdAt') }}</dt>
-          <dd>{{ formatTime(credential.createdAt) }}</dd>
-          <dt>{{ t('gateway.fields.rotatedAt') }}</dt>
-          <dd>{{ formatTime(credential.rotatedAt) }}</dd>
-          <dt>{{ t('gateway.fields.lastUsedAt') }}</dt>
-          <dd>{{ formatTime(credential.lastUsedAt) }}</dd>
-        </dl>
-        <div class="action-grid">
-          <button type="button" :disabled="credentialRunning" @click="rotateCredential">
-            {{ t('gateway.rotateCredential') }}
-          </button>
-          <button v-if="credential" type="button" :disabled="credentialRunning" @click="toggleCredential">
-            {{ credential.enabled ? t('gateway.disableCredential') : t('gateway.enableCredential') }}
-          </button>
-        </div>
-        <div v-if="credentialSecret" class="secret-box">
-          <dl>
-            <dt>{{ t('gateway.fields.username') }}</dt>
-            <dd>{{ credentialSecret.username }}</dd>
-            <dt>{{ t('gateway.fields.secret') }}</dt>
-            <dd><code>{{ credentialSecret.secret }}</code></dd>
-          </dl>
-          <p>{{ t('gateway.secretHint') }}</p>
-        </div>
-      </section>
-
-      <section class="detail-panel">
-        <h2>{{ t('gateway.resources') }}</h2>
-        <dl>
-          <dt>{{ t('gateway.fields.cpu') }}</dt>
-          <dd>{{ gateway.resources.cpu }}%</dd>
-          <dt>{{ t('gateway.fields.memory') }}</dt>
-          <dd>{{ gateway.resources.mem }}%</dd>
-          <dt>{{ t('gateway.fields.disk') }}</dt>
-          <dd>{{ gateway.resources.disk }}%</dd>
-          <dt>{{ t('gateway.fields.uptime') }}</dt>
-          <dd>{{ gateway.resources.uptimeSec }}s</dd>
-        </dl>
-      </section>
-
-      <section class="detail-panel">
-        <h2>{{ t('gateway.services') }}</h2>
-        <ul class="service-list">
-          <li v-for="(value, key) in gateway.services" :key="key">
-            <span>{{ key }}</span>
-            <strong>{{ translateStatus(value) }}</strong>
-          </li>
-        </ul>
-      </section>
-
-      <section class="detail-panel">
-        <h2>{{ t('gateway.actions') }}</h2>
-        <div class="action-grid">
-          <button type="button" :disabled="commandRunning" @click="runGatewayCommand('system.info')">
-            {{ t('command.types.systemInfo') }}
-          </button>
-          <button type="button" :disabled="commandRunning" @click="readFirewallRules">
-            {{ t('command.types.firewallGet') }}
-          </button>
-          <button type="button" :disabled="commandRunning" @click="readNetworkStatus">
-            {{ t('command.types.networkGet') }}
-          </button>
-        </div>
-        <p v-if="commandMessage" class="action-message">{{ commandMessage }}</p>
-      </section>
-
-      <section class="detail-panel firewall-panel">
-        <div class="panel-heading">
-          <h2>{{ t('gateway.firewall') }}</h2>
-          <div v-if="firewallCommandId" class="panel-actions">
-            <span v-if="firewallUpdatedAt">{{ t('gateway.firewallFromCommand', { time: formatTime(firewallUpdatedAt) }) }}</span>
-            <RouterLink :to="`/commands/${firewallCommandId}`">
-              {{ t('gateway.viewCommand') }}
-            </RouterLink>
+    <a-card size="small" class="head-card">
+      <a-skeleton v-if="loading && !gateway" active :paragraph="{ rows: 2 }" />
+      <a-result v-else-if="error && !gateway" status="warning" :title="error" />
+      <template v-else-if="gateway">
+        <div class="head-row">
+          <div>
+            <a-space :size="10" align="center">
+              <span class="head-title">{{ gateway.name }}</span>
+              <StatusPill :status="gateway.status" />
+              <a-tag>{{ gateway.gatewayId }}</a-tag>
+            </a-space>
+            <div class="head-sub">{{ gateway.kuraVersion ?? '-' }} · {{ gateway.ipAddrs.join(', ') || '-' }}</div>
           </div>
+          <a-space>
+            <a-switch
+              :checked="gateway.enabled"
+              :checked-children="t('common.enabled')"
+              :un-checked-children="t('common.disabled')"
+              :loading="savingGateway"
+              @change="toggleGateway"
+            />
+            <a-divider type="vertical" />
+            <a-button size="small" :loading="commandRunning" @click="runGatewayCommand('system.info')">
+              {{ t('command.types.systemInfo') }}
+            </a-button>
+            <a-button size="small" :loading="commandRunning" @click="readFirewallRules">
+              {{ t('command.types.firewallGet') }}
+            </a-button>
+            <a-button size="small" :loading="commandRunning" @click="readNetworkStatus">
+              {{ t('command.types.networkGet') }}
+            </a-button>
+          </a-space>
         </div>
-        <div v-if="gateway.firewallStatus" class="firewall-status-strip">
-          <span>{{ t('firewall.ipv4') }}: <strong>{{ gateway.firewallStatus.ipv4RuleCount ?? 0 }}</strong></span>
-          <span>{{ t('firewall.ipv6') }}: <strong>{{ gateway.firewallStatus.ipv6RuleCount ?? 0 }}</strong></span>
-          <span>{{ t('firewall.health') }}: <strong>{{ gateway.firewallStatus.healthy ? t('status.normal') : t('status.abnormal') }}</strong></span>
-          <span>{{ t('firewall.source') }}: <strong>{{ gateway.firewallStatus.source || '-' }}</strong></span>
-          <span>{{ t('firewall.collectedAt') }}: <strong>{{ formatTime(gateway.firewallStatus.collectedAt) }}</strong></span>
-        </div>
-        <div v-if="firewallLoading" class="state-box">{{ t('gateway.loadingFirewall') }}</div>
-        <div v-else-if="firewallError" class="state-box">{{ firewallError }}</div>
-        <div v-else-if="firewallConfig">
-          <FirewallRulesView :config="firewallConfig" />
-        </div>
-        <div v-else class="state-box">{{ t('gateway.noFirewallData') }}</div>
-      </section>
+        <a-alert
+          v-if="commandMessage"
+          :message="commandMessage"
+          type="info"
+          show-icon
+          closable
+          style="margin-top: 12px"
+        />
+      </template>
+    </a-card>
 
-      <section class="detail-panel network-panel">
-        <div class="panel-heading">
-          <h2>{{ t('gateway.network') }}</h2>
-          <div v-if="networkCommandId" class="panel-actions">
-            <span v-if="networkUpdatedAt">{{ t('gateway.networkFromCommand', { time: formatTime(networkUpdatedAt) }) }}</span>
-            <RouterLink :to="`/commands/${networkCommandId}`">
-              {{ t('gateway.viewCommand') }}
-            </RouterLink>
-          </div>
+    <a-tabs v-if="gateway" v-model:active-key="activeTab" class="detail-tabs" size="small">
+      <a-tab-pane key="overview" :tab="t('gateway.summary')">
+        <div class="stat-row">
+          <a-card size="small">
+            <a-statistic title="CPU" :value="gateway.resources.cpu" suffix="%" :precision="1" :value-style="{ color: '#1677ff' }" />
+          </a-card>
+          <a-card size="small">
+            <a-statistic title="MEM" :value="gateway.resources.mem" suffix="%" :precision="1" :value-style="{ color: '#722ed1' }" />
+          </a-card>
+          <a-card size="small">
+            <a-statistic title="DISK" :value="gateway.resources.disk" suffix="%" :precision="1" :value-style="{ color: '#fa8c16' }" />
+          </a-card>
+          <a-card size="small">
+            <a-statistic :title="t('gateway.fields.uptime')" :value="gateway.resources.uptimeSec ?? 0" suffix="s" />
+          </a-card>
         </div>
-        <div v-if="networkLoading" class="state-box">{{ t('gateway.loadingNetwork') }}</div>
-        <div v-else-if="networkError" class="state-box">{{ networkError }}</div>
-        <NetworkStatusView v-else-if="networkConfig" :config="networkConfig" />
-        <div v-else class="state-box">{{ t('gateway.noNetworkData') }}</div>
-      </section>
 
-      <section class="detail-panel config-panel-section">
-        <h2>{{ t('gateway.config') }}</h2>
+        <a-card size="small" style="margin-top: 12px">
+          <a-descriptions :column="2" size="small" bordered>
+            <a-descriptions-item :label="t('gateway.fields.name')">{{ gateway.name }}</a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.lastSeen')">{{ formatTime(gateway.lastSeenAt) }}</a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.kura')">{{ gateway.kuraVersion ?? '-' }}</a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.os')">{{ gateway.osVersion ?? '-' }}</a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.ip')">{{ gateway.ipAddrs.join(', ') || '-' }}</a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.mac')">{{ gateway.macAddrs.join(', ') || '-' }}</a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.firewall')" :span="2">
+              {{ translateStatus(gateway.firewallStatus.running ? 'running' : (gateway.firewallStatus.serviceState || (gateway.firewallStatus.enabled ? 'enabled' : 'disabled'))) }}
+              <a-tag :color="gateway.firewallStatus.healthy ? 'success' : 'error'">
+                {{ gateway.firewallStatus.healthy ? t('status.normal') : t('status.abnormal') }}
+              </a-tag>
+            </a-descriptions-item>
+          </a-descriptions>
+        </a-card>
+
+        <a-card size="small" :title="t('gateway.services')" style="margin-top: 12px">
+          <a-space wrap :size="8">
+            <a-tag v-for="(value, key) in gateway.services" :key="key">
+              {{ key }}:
+              <template v-if="value === 'active' || value === 'running'"><a-badge status="success" :text="translateStatus(value)" /></template>
+              <template v-else-if="value === 'failed'"><a-badge status="error" :text="translateStatus(value)" /></template>
+              <template v-else><a-badge status="default" :text="translateStatus(value)" /></template>
+            </a-tag>
+          </a-space>
+        </a-card>
+      </a-tab-pane>
+
+      <a-tab-pane key="config" :tab="t('gateway.config')">
         <ConfigPanel :gateway-id="gateway.gatewayId" />
-      </section>
+      </a-tab-pane>
 
-      <section class="detail-panel snapshot-panel-section">
-        <h2>{{ t('gateway.snapshots') }}</h2>
+      <a-tab-pane key="snapshots" :tab="t('gateway.snapshots')">
         <SnapshotPanel :gateway-id="gateway.gatewayId" />
-      </section>
+      </a-tab-pane>
 
-      <section class="detail-panel heartbeat-panel">
-        <h2>{{ t('gateway.heartbeats') }}</h2>
-        <div v-if="heartbeats.length === 0" class="state-box">{{ t('gateway.noHeartbeats') }}</div>
-        <div v-else>
-          <dl>
-            <dt>{{ t('gateway.fields.reportedAt') }}</dt>
-            <dd>{{ formatTime(heartbeats[0].ts) }}</dd>
-            <dt>{{ t('gateway.fields.status') }}</dt>
-            <dd><StatusPill :status="heartbeats[0].online ? 'online' : 'offline'" /></dd>
-            <dt>{{ t('gateway.fields.ip') }}</dt>
-            <dd>{{ heartbeats[0].ipAddrs.join(', ') || '-' }}</dd>
-            <dt>{{ t('gateway.fields.uptime') }}</dt>
-            <dd>{{ heartbeats[0].uptimeSec ?? 0 }}s</dd>
-          </dl>
-          <pre>{{ formatJson(heartbeats[0].rawPayload) }}</pre>
+      <a-tab-pane key="firewall" :tab="t('gateway.firewall')">
+        <div class="panel-heading">
+          <span class="panel-meta">
+            <a-tag color="default">v4: {{ gateway.firewallStatus.ipv4RuleCount ?? 0 }}</a-tag>
+            <a-tag color="default">v6: {{ gateway.firewallStatus.ipv6RuleCount ?? 0 }}</a-tag>
+            <a-tag :color="gateway.firewallStatus.healthy ? 'success' : 'error'">
+              {{ t('firewall.health') }}: {{ gateway.firewallStatus.healthy ? t('status.normal') : t('status.abnormal') }}
+            </a-tag>
+            <span v-if="firewallUpdatedAt">{{ t('gateway.firewallFromCommand', { time: formatTime(firewallUpdatedAt) }) }}</span>
+            <RouterLink v-if="firewallCommandId" :to="`/commands/${firewallCommandId}`">
+              {{ t('gateway.viewCommand') }}
+            </RouterLink>
+          </span>
+          <a-button size="small" :loading="firewallLoading" @click="readFirewallRules">
+            <template #icon><ReloadOutlined /></template>
+            {{ t('command.types.firewallGet') }}
+          </a-button>
         </div>
-      </section>
+        <a-spin v-if="firewallLoading" style="display: block; padding: 32px" />
+        <a-alert v-else-if="firewallError" :message="firewallError" type="error" show-icon />
+        <FirewallRulesView v-else-if="firewallConfig" :config="firewallConfig" />
+        <a-empty v-else :description="t('gateway.noFirewallData')" style="padding: 32px" />
+      </a-tab-pane>
 
-      <section class="detail-panel commands-panel">
-        <h2>{{ t('gateway.commands') }}</h2>
-        <div v-if="commands.length === 0" class="state-box">{{ t('gateway.noCommands') }}</div>
-        <table v-else class="mini-table">
-          <thead>
-            <tr>
-              <th>{{ t('command.fields.commandId') }}</th>
-              <th>{{ t('command.fields.type') }}</th>
-              <th>{{ t('command.fields.status') }}</th>
-              <th>{{ t('command.fields.requested') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="command in commands" :key="command.commandId">
-              <td><RouterLink :to="`/commands/${command.commandId}`">{{ command.commandId }}</RouterLink></td>
-              <td>{{ command.type }}</td>
-              <td>{{ t(`status.${command.status}`) }}</td>
-              <td>{{ formatTime(command.requestedAt) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-    </div>
+      <a-tab-pane key="network" :tab="t('gateway.network')">
+        <div class="panel-heading">
+          <span class="panel-meta">
+            <span v-if="networkUpdatedAt">{{ t('gateway.networkFromCommand', { time: formatTime(networkUpdatedAt) }) }}</span>
+            <RouterLink v-if="networkCommandId" :to="`/commands/${networkCommandId}`">
+              {{ t('gateway.viewCommand') }}
+            </RouterLink>
+          </span>
+          <a-button size="small" :loading="networkLoading" @click="readNetworkStatus">
+            <template #icon><ReloadOutlined /></template>
+            {{ t('command.types.networkGet') }}
+          </a-button>
+        </div>
+        <a-spin v-if="networkLoading" style="display: block; padding: 32px" />
+        <a-alert v-else-if="networkError" :message="networkError" type="error" show-icon />
+        <NetworkStatusView v-else-if="networkConfig" :config="networkConfig" />
+        <a-empty v-else :description="t('gateway.noNetworkData')" style="padding: 32px" />
+      </a-tab-pane>
+
+      <a-tab-pane key="credentials" :tab="t('gateway.credentials')">
+        <a-alert v-if="credentialError" :message="credentialError" type="warning" show-icon style="margin-bottom: 12px" />
+        <a-descriptions v-else-if="credential" :column="2" size="small" bordered>
+          <a-descriptions-item :label="t('gateway.fields.username')">
+            <a-tag>{{ credential.gatewayId }}</a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item :label="t('gateway.fields.enabled')">
+            {{ credential.enabled ? t('common.yes') : t('common.no') }}
+          </a-descriptions-item>
+          <a-descriptions-item :label="t('gateway.fields.createdAt')">{{ formatTime(credential.createdAt) }}</a-descriptions-item>
+          <a-descriptions-item :label="t('gateway.fields.rotatedAt')">{{ formatTime(credential.rotatedAt) }}</a-descriptions-item>
+          <a-descriptions-item :label="t('gateway.fields.lastUsedAt')" :span="2">
+            {{ formatTime(credential.lastUsedAt) }}
+          </a-descriptions-item>
+        </a-descriptions>
+        <a-space style="margin-top: 12px">
+          <a-button type="primary" :loading="credentialRunning" @click="rotateCredential">
+            {{ t('gateway.rotateCredential') }}
+          </a-button>
+          <a-button v-if="credential" :loading="credentialRunning" @click="toggleCredential">
+            {{ credential.enabled ? t('gateway.disableCredential') : t('gateway.enableCredential') }}
+          </a-button>
+        </a-space>
+        <a-alert
+          v-if="credentialSecret"
+          type="success"
+          show-icon
+          style="margin-top: 12px"
+          :message="`${t('gateway.fields.secret')}: ${credentialSecret.secret}`"
+          :description="t('gateway.secretHint')"
+        />
+      </a-tab-pane>
+
+      <a-tab-pane key="heartbeats" :tab="t('gateway.heartbeats')">
+        <a-empty v-if="heartbeats.length === 0" :description="t('gateway.noHeartbeats')" />
+        <template v-else>
+          <a-descriptions :column="4" size="small" bordered>
+            <a-descriptions-item :label="t('gateway.fields.reportedAt')">{{ formatTime(heartbeats[0].ts) }}</a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.status')">
+              <StatusPill :status="heartbeats[0].online ? 'online' : 'offline'" />
+            </a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.ip')">{{ heartbeats[0].ipAddrs.join(', ') || '-' }}</a-descriptions-item>
+            <a-descriptions-item :label="t('gateway.fields.uptime')">{{ heartbeats[0].uptimeSec ?? 0 }}s</a-descriptions-item>
+          </a-descriptions>
+          <pre>{{ formatJson(heartbeats[0].rawPayload) }}</pre>
+        </template>
+      </a-tab-pane>
+
+      <a-tab-pane key="commands" :tab="t('gateway.commands')">
+        <a-empty v-if="commands.length === 0" :description="t('gateway.noCommands')" />
+        <a-table
+          v-else
+          :data-source="commands"
+          :columns="commandColumns"
+          :pagination="{ pageSize: 10, hideOnSinglePage: true }"
+          row-key="commandId"
+          size="small"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'commandId'">
+              <RouterLink :to="`/commands/${record.commandId}`">{{ record.commandId }}</RouterLink>
+            </template>
+            <template v-else-if="column.key === 'status'">
+              <a-tag :color="commandStatusColor(record.status)">{{ t(`status.${record.status}`) }}</a-tag>
+            </template>
+            <template v-else-if="column.key === 'requestedAt'">
+              {{ formatTime(record.requestedAt) }}
+            </template>
+          </template>
+        </a-table>
+      </a-tab-pane>
+    </a-tabs>
   </main>
 </template>
 
@@ -218,6 +222,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ReloadOutlined } from '@ant-design/icons-vue'
 import StatusPill from '@/components/StatusPill.vue'
 import FirewallRulesView, { type FirewallConfigPayload } from '@/components/FirewallRulesView.vue'
 import RefreshNotice from '@/components/RefreshNotice.vue'
@@ -267,11 +272,26 @@ const networkCommandId = ref<string | null>(null)
 const networkUpdatedAt = ref<string | number | null>(null)
 const credentialRunning = ref(false)
 const savingGateway = ref(false)
+const activeTab = ref('overview')
 let refreshTimer: number | undefined
 let loadedFirewallCommandId: string | null = null
 let loadedNetworkCommandId: string | null = null
 
 const resolvedGatewayId = computed(() => String(props.gatewayId ?? route.params.gatewayId ?? ''))
+
+const commandColumns = computed(() => [
+  { title: t('command.fields.commandId'), key: 'commandId' },
+  { title: t('command.fields.type'), dataIndex: 'type', key: 'type' },
+  { title: t('command.fields.status'), key: 'status', width: 110 },
+  { title: t('command.fields.requested'), key: 'requestedAt', width: 170 },
+])
+
+function commandStatusColor(status: string) {
+  if (status === 'success') return 'success'
+  if (status === 'failed' || status === 'timeout' || status === 'rejected') return 'error'
+  if (status === 'running' || status === 'sent') return 'processing'
+  return 'default'
+}
 
 function formatTime(value?: string | number | null) {
   if (!value) {
@@ -599,176 +619,63 @@ watch(resolvedGatewayId, () => {
 </script>
 
 <style scoped>
-.detail-grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+.head-card {
+  border-radius: 8px;
+}
+
+.head-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.head-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.head-sub {
+  color: #6b7280;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.detail-tabs {
+  background: transparent;
   margin-top: 16px;
 }
 
-.detail-panel {
+.detail-tabs :deep(.ant-tabs-content-holder) {
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
   padding: 16px;
 }
 
-dl {
+.stat-row {
   display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 8px 12px;
-}
-
-dt {
-  color: #6b7280;
-}
-
-dd {
-  margin: 0;
-}
-
-.service-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.service-list li {
-  align-items: center;
-  border-bottom: 1px solid #eef2f7;
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-}
-
-.action-grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-}
-
-.action-grid button {
-  background: #111827;
-  border: 1px solid #111827;
-  border-radius: 4px;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  min-height: 38px;
-  padding: 8px 10px;
-}
-
-.action-grid button:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.action-message {
-  color: #374151;
-  margin: 12px 0 0;
-}
-
-.inline-button {
-  background: #f9fafb;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  cursor: pointer;
-  font: inherit;
-  min-height: 30px;
-  padding: 4px 10px;
-}
-
-.secret-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  margin-top: 12px;
-  padding: 12px;
-}
-
-.secret-box code {
-  overflow-wrap: anywhere;
-}
-
-.secret-box p {
-  color: #6b7280;
-  margin: 8px 0 0;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .panel-heading {
   align-items: center;
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.panel-heading h2 {
-  margin: 0;
-}
-
-.panel-heading a {
-  color: #2563eb;
-  text-decoration: none;
-}
-
-.panel-actions {
+.panel-meta {
   align-items: center;
   color: #6b7280;
   display: flex;
   flex-wrap: wrap;
   font-size: 13px;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.firewall-status-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 12px 0;
-}
-
-.firewall-status-strip span {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 8px 10px;
-}
-
-.health-ok {
-  color: #047857;
-  margin-left: 6px;
-}
-
-.health-bad {
-  color: #b91c1c;
-  margin-left: 6px;
-}
-
-.heartbeat-panel,
-.firewall-panel,
-.network-panel,
-.commands-panel {
-  grid-column: 1 / -1;
-}
-
-.mini-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.mini-table th,
-.mini-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 10px 8px;
-  text-align: left;
-}
-
-.mini-table th {
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
+  gap: 8px;
 }
 
 pre {

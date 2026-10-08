@@ -1,53 +1,61 @@
 <template>
   <div class="snapshot-panel">
     <div class="panel-heading">
-      <button type="button" :disabled="busy" @click="writeSnapshot">
-        {{ t('snapshot.write') }}
-      </button>
-      <button type="button" :disabled="busy" @click="refresh">
-        {{ t('snapshot.refresh') }}
-      </button>
+      <a-space>
+        <a-button size="small" :loading="busy" @click="writeSnapshot">
+          <template #icon><SaveOutlined /></template>
+          {{ t('snapshot.write') }}
+        </a-button>
+        <a-button size="small" :loading="busy" @click="refresh">
+          <template #icon><ReloadOutlined /></template>
+          {{ t('snapshot.refresh') }}
+        </a-button>
+      </a-space>
     </div>
 
-    <p v-if="message" class="action-message">{{ message }}</p>
+    <a-alert v-if="message" :message="message" type="info" show-icon closable style="margin-bottom: 12px" />
 
-    <table v-if="rows.length" class="data-table">
-      <thead>
-        <tr>
-          <th>{{ t('snapshot.id') }}</th>
-          <th>{{ t('snapshot.archivedAt') }}</th>
-          <th>{{ t('snapshot.by') }}</th>
-          <th>{{ t('snapshot.source') }}</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id">
-          <td>{{ row.id }}</td>
-          <td>{{ row.archivedAt ? formatTime(row.archivedAt) : t('snapshot.notArchived') }}</td>
-          <td>{{ row.by || '-' }}</td>
-          <td>
-            <RouterLink v-if="row.sourceCommandId" :to="`/commands/${row.sourceCommandId}`">
-              {{ row.sourceCommandId }}
-            </RouterLink>
-            <template v-else>-</template>
-          </td>
-          <td>
-            <button type="button" :disabled="busy" @click="rollback(row.id)">
-              {{ t('snapshot.rollback') }}
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else-if="!busy" class="action-message">{{ t('snapshot.empty') }}</p>
+    <a-table
+      v-if="rows.length"
+      :data-source="rows"
+      :columns="columns"
+      :loading="busy"
+      :pagination="{ pageSize: 10, hideOnSinglePage: true }"
+      row-key="id"
+      size="small"
+    >
+      <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'id'">
+          <a-tag color="blue">{{ record.id }}</a-tag>
+        </template>
+        <template v-else-if="column.key === 'archivedAt'">
+          {{ record.archivedAt ? formatTime(record.archivedAt) : t('snapshot.notArchived') }}
+        </template>
+        <template v-else-if="column.key === 'by'">
+          {{ record.by || '-' }}
+        </template>
+        <template v-else-if="column.key === 'sourceCommandId'">
+          <RouterLink v-if="record.sourceCommandId" :to="`/commands/${record.sourceCommandId}`">
+            {{ record.sourceCommandId }}
+          </RouterLink>
+          <template v-else>-</template>
+        </template>
+        <template v-else-if="column.key === 'action'">
+          <a-popconfirm :title="t('snapshot.rollback') + ' ?'" @confirm="rollback(record.id)">
+            <a-button size="small" danger :disabled="busy">{{ t('snapshot.rollback') }}</a-button>
+          </a-popconfirm>
+        </template>
+      </template>
+    </a-table>
+    <a-empty v-else-if="!busy" :description="t('snapshot.empty')" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { ReloadOutlined, SaveOutlined } from '@ant-design/icons-vue'
 import { createCommandAndWait } from '@/api/commands'
 import { request } from '@/api/http'
 import type { ListResponse } from '@/types/common'
@@ -72,6 +80,14 @@ const { t, locale } = useI18n()
 const busy = ref(false)
 const message = ref('')
 const rows = ref<SnapshotRow[]>([])
+
+const columns = computed(() => [
+  { title: t('snapshot.id'), key: 'id', width: 160 },
+  { title: t('snapshot.archivedAt'), key: 'archivedAt', width: 180 },
+  { title: t('snapshot.by'), key: 'by', width: 90 },
+  { title: t('snapshot.source'), key: 'sourceCommandId', width: 130 },
+  { title: '', key: 'action', width: 130 },
+])
 
 function formatTime(value: string | number | null): string {
   if (!value) return '-'
