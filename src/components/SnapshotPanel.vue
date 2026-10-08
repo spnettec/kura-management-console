@@ -97,7 +97,8 @@ function formatTime(value: string | number | null): string {
 async function run(type: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   const detail = await createCommandAndWait({ gatewayId: props.gatewayId, type, payload })
   if (detail.status === 'success') {
-    return detail.replyPayload ?? {}
+    // replies are stored as full envelopes; the command payload lives one level down
+    return (detail.replyPayload?.payload as Record<string, unknown> | undefined) ?? {}
   }
   throw new Error(detail.errorMessage || t('snapshot.commandFailed'))
 }

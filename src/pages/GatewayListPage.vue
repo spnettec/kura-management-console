@@ -15,6 +15,12 @@
       </template>
       <template #extra>
         <a-space>
+          <a-input-search
+            v-model:value="searchKeyword"
+            :placeholder="t('gateway.searchPlaceholder')"
+            allow-clear
+            style="width: 220px"
+          />
           <a-select
             v-model:value="statusFilter"
             :placeholder="t('gateway.filters.allStatuses')"
@@ -34,7 +40,7 @@
       </template>
 
       <a-table
-        :data-source="gateways"
+        :data-source="filteredGateways"
         :columns="columns"
         :loading="loading"
         :pagination="{ pageSize: 15, hideOnSinglePage: true }"
@@ -108,6 +114,7 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const refreshError = ref<string | null>(null)
 const statusFilter = ref<GatewayStatus | undefined>(undefined)
+const searchKeyword = ref('')
 const createOpen = ref(false)
 const creatingGateway = ref(false)
 const createMessage = ref<string | null>(null)
@@ -139,6 +146,17 @@ const columns = computed(() => [
   { title: t('gateway.fields.kura'), dataIndex: 'kuraVersion', key: 'kuraVersion', ellipsis: true },
   { title: t('gateway.fields.ip'), key: 'ipAddrs', ellipsis: true },
 ])
+
+const filteredGateways = computed(() => {
+  const keyword = searchKeyword.value.trim().toLowerCase()
+  if (!keyword) {
+    return gateways.value
+  }
+  return gateways.value.filter((item) =>
+    item.name.toLowerCase().includes(keyword)
+    || item.gatewayId.toLowerCase().includes(keyword)
+    || item.ipAddrs.some((ip) => ip.toLowerCase().includes(keyword)))
+})
 
 function statusLabel(status: GatewayStatus) {
   return t(`status.${status}`)

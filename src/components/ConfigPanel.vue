@@ -45,9 +45,40 @@
       <a-empty v-if="!Object.keys(editValues).length" :description="t('config.noProperties')" />
       <div class="config-fields">
         <div v-for="(entry, name) in editValues" :key="name" class="config-field">
-          <span class="field-name">{{ name }} <a-tag style="margin-left: 4px">{{ entry.type }}</a-tag></span>
+          <span class="field-name">
+            {{ entry.label || name }}
+            <a-tag style="margin-left: 4px">{{ entry.type }}</a-tag>
+          </span>
+
+          <a-switch
+            v-if="entry.control === 'switch'"
+            :checked="entry.text === 'true'"
+            @change="(checked: any) => { entry.text = String(checked === true) }"
+          />
+          <a-input-number
+            v-else-if="entry.control === 'number'"
+            :value="numberValueOf(entry)"
+            :precision="entry.type === 'FLOAT' || entry.type === 'DOUBLE' ? undefined : 0"
+            style="width: 100%"
+            @update:value="(value: any) => { entry.text = String(value ?? 0) }"
+          />
+          <a-select
+            v-else-if="entry.control === 'select'"
+            :value="entry.text"
+            :options="entry.options"
+            style="width: 100%"
+            @update:value="(value: any) => { entry.text = String(value) }"
+          />
+          <a-select
+            v-else-if="entry.control === 'multi'"
+            :value="entry.arrayValue"
+            :mode="entry.options ? 'multiple' : 'tags'"
+            :options="entry.options"
+            style="width: 100%"
+            @update:value="(value: any) => { entry.arrayValue = value.map(String) }"
+          />
           <a-input-password
-            v-if="isPasswordField(entry)"
+            v-else-if="entry.isPassword"
             v-model:value="entry.text"
             :placeholder="t('config.passwordPlaceholder')"
             autocomplete="new-password"
@@ -75,15 +106,30 @@ interface KuraProperty {
   value: unknown
 }
 
+interface AdDefinition {
+  id: string
+  name?: string | null
+  type?: string | null
+  cardinality?: number | null
+  option?: Array<{ label: string; value: string }> | null
+}
+
+type FieldControl = 'switch' | 'number' | 'select' | 'multi' | 'text'
+
 interface EditableField {
   type: string
   isPassword: boolean
   text: string
   isPlaceholder: boolean
+  label: string | null
+  control: FieldControl
+  options: Array<{ label: string; value: string }> | undefined
+  arrayValue: string[]
+  numericType: boolean
 }
 
 const PASSWORD_PLACEHOLDER = 'placeholder'
-const PASSWORD_TYPES = new Set(['PASSWORD', 'com.fasterxml.jackson.databind.node.TextNode'])
+const NUMERIC_TYPES = new Set(['INTEGER', 'LONG', 'SHORT', 'BYTE', 'FLOAT', 'DOUBLE'])
 
 const props = defineProps<{ gatewayId: string }>()
 const { t } = useI18n()
@@ -107,14 +153,34 @@ function toText(value: unknown): string {
   return String(value)
 }
 
-function isPasswordField(entry: EditableField): boolean {
-  return entry.isPassword
+function decideControl(ad: AdDefinition | null, type: string): { control: FieldControl; options: Array<{ label: string; value: string }> | undefined } {
+  const cardinality = ad?.cardinality ?? 0
+  const options = ad?.option?.map((option) => ({ label: option.label || option.value, value: option.value }))
+  if (cardinality !== 0) {
+    return { control: 'multi', options }
+  }
+  if (options && options.length > 0 && type !== 'PASSWORD') {
+    return { control: 'select', options }
+  }
+  if (type === 'BOOLEAN') {
+    return { control: 'switch', options: undefined }
+  }
+  if (NUMERIC_TYPES.has(type)) {
+    return { control: 'number', options: undefined }
+  }
+  return { control: 'text', options: undefined }
+}
+
+function numberValueOf(entry: EditableField): number {
+  const parsed = Number(entry.text)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 async function run(type: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   const detail = await createCommandAndWait({ gatewayId: props.gatewayId, type, payload })
   if (detail.status === 'success') {
-    return detail.replyPayload ?? {}
+    // replies are stored as full envelopes; the command payload lives one level down
+    return (detail.replyPayload?.payload as Record<string, unknown> | undefined) ?? {}
   }
   throw new Error(detail.errorMessage || t('config.commandFailed'))
 }
@@ -139,19 +205,37 @@ async function loadConfig(pid: string) {
   message.value = ''
   try {
     const reply = await run('config.get', { pid })
-    const configurations = (reply.configs as Array<{ pid: string; properties?: Record<string, KuraProperty> }>) ?? []
+    const configurations = (reply.configs as Array<{
+      pid: string
+      definition?: { ad?: AdDefinition[] | null } | null
+      properties?: Record<string, KuraProperty>
+    }>) ?? []
     const configuration = configurations.find((c) => c.pid === pid) ?? configurations[0]
     const properties = configuration?.properties ?? {}
+    const adById = new Map<string, AdDefinition>()
+    for (const ad of configuration?.definition?.ad ?? []) {
+      if (ad.id) {
+        adById.set(ad.id, ad)
+      }
+    }
     const fields: Record<string, EditableField> = {}
     for (const [name, property] of Object.entries(properties)) {
-      const isPassword = String(property.type ?? '').toUpperCase() === 'PASSWORD'
+      const type = String(property.type ?? 'STRING')
+      const ad = adById.get(name) ?? null
+      const { control, options } = decideControl(ad, type)
+      const isPassword = type === 'PASSWORD'
       const raw = property.value
       const isPlaceholder = isPassword && raw === PASSWORD_PLACEHOLDER
       fields[name] = {
-        type: String(property.type ?? '-'),
+        type,
         isPassword,
         text: isPlaceholder ? '' : toText(raw),
         isPlaceholder,
+        label: ad?.name ?? null,
+        control,
+        options,
+        arrayValue: Array.isArray(raw) ? raw.map(String) : [],
+        numericType: NUMERIC_TYPES.has(type),
       }
     }
     selectedPid.value = pid
@@ -174,13 +258,23 @@ async function saveConfig() {
         // untouched password placeholder: omit so Kura keeps the stored secret
         continue
       }
-      let value: unknown = entry.text
-      if (entry.text.startsWith('[') || entry.text.startsWith('{')) {
+      let value: unknown
+      if (entry.control === 'switch') {
+        value = entry.text === 'true'
+      } else if (entry.control === 'multi') {
+        value = entry.numericType
+          ? entry.arrayValue.map((item) => Number(item)).filter((item) => Number.isFinite(item))
+          : entry.arrayValue.slice()
+      } else if (entry.control === 'number') {
+        value = numberValueOf(entry)
+      } else if (entry.text.startsWith('[') || entry.text.startsWith('{')) {
         try {
           value = JSON.parse(entry.text)
         } catch {
-          // keep as plain string when it is not valid JSON
+          value = entry.text
         }
+      } else {
+        value = entry.text
       }
       properties[name] = { type: entry.type, value }
     }

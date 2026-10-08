@@ -6,6 +6,7 @@
       <template #title>{{ t('command.title') }}</template>
       <template #extra>
         <a-space>
+          <a-segmented v-model:value="timeRange" :options="timeRangeOptions" size="small" />
           <a-input-search
             v-model:value="gatewayFilter"
             :placeholder="t('command.filters.anyGateway')"
@@ -41,7 +42,7 @@
       />
 
       <a-table
-        :data-source="commands"
+        :data-source="filteredCommands"
         :columns="columns"
         :loading="loading"
         :pagination="{ pageSize: 15, hideOnSinglePage: true }"
@@ -144,6 +145,7 @@ const refreshError = ref<string | null>(null)
 const createMessage = ref<string | null>(null)
 const gatewayFilter = ref('')
 const statusFilter = ref<CommandStatus | undefined>(undefined)
+const timeRange = ref<string>('all')
 let refreshTimer: number | undefined
 const form = ref({
   gatewayId: 'gw-001',
@@ -161,6 +163,20 @@ const typeOptions = [
   { value: 'firewall.get', label: t('command.types.firewallGet') },
   { value: 'network.get', label: t('command.types.networkGet') },
 ]
+
+const timeRangeOptions = computed(() => [
+  { value: 'all', label: t('command.filters.allTimes') },
+  { value: '1h', label: t('command.filters.lastHour') },
+  { value: '24h', label: t('command.filters.last24h') },
+])
+
+const filteredCommands = computed(() => {
+  if (timeRange.value === 'all') {
+    return commands.value
+  }
+  const cutoff = Date.now() - (timeRange.value === '1h' ? 3600_000 : 24 * 3600_000)
+  return commands.value.filter((item) => new Date(item.requestedAt).getTime() >= cutoff)
+})
 
 const columns = computed(() => [
   { title: t('command.fields.commandId'), key: 'commandId', width: 130 },

@@ -127,6 +127,7 @@ export const messages = {
       filters: {
         allStatuses: '全部状态',
       },
+      searchPlaceholder: '搜索名称 / ID / IP',
       summaryFields: {
         total: '总数',
       },
@@ -176,6 +177,9 @@ export const messages = {
         allStatuses: '全部状态',
         anyGateway: '全部网关',
         apply: '应用',
+        allTimes: '全部',
+        lastHour: '近 1 小时',
+        last24h: '近 24 小时',
       },
     },
     firewall: {
@@ -376,6 +380,9 @@ export const messages = {
       },
       filters: {
         allStatuses: 'All statuses',
+        allTimes: 'All',
+        lastHour: '1h',
+        last24h: '24h',
       },
       summaryFields: {
         total: 'Total',
