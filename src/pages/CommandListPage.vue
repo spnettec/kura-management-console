@@ -82,6 +82,18 @@
       width="720"
       destroy-on-close
     >
+      <div class="drawer-toolbar">
+        <a-space :size="8">
+          <span class="toolbar-label">{{ t('command.autoRefresh') }}</span>
+          <a-switch v-model:checked="autoRefresh" size="small" />
+          <a-button size="small" :loading="detailLoading" @click="refreshSelected">
+            <template #icon><ReloadOutlined /></template>
+          </a-button>
+        </a-space>
+        <a-tag v-if="selectedCommand" :color="statusColor(selectedCommand.status)">
+          {{ t(`status.${selectedCommand.status}`) }}
+        </a-tag>
+      </div>
       <a-spin v-if="detailLoading" style="display: block; padding: 48px" />
       <CommandDetailPanel v-else-if="selectedCommand" :command="selectedCommand" />
     </a-drawer>
@@ -108,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
@@ -122,6 +134,8 @@ const commands = ref<CommandListItem[]>([])
 const selectedCommand = ref<CommandDetailItem | null>(null)
 const detailOpen = ref(false)
 const detailLoading = ref(false)
+const autoRefresh = ref(true)
+let detailTimer: number | undefined
 const createOpen = ref(false)
 const loading = ref(false)
 const creating = ref(false)
@@ -182,6 +196,33 @@ async function openDetail(commandId: string) {
     detailLoading.value = false
   }
 }
+
+async function refreshSelected() {
+  if (!selectedCommand.value || detailLoading.value) {
+    return
+  }
+  try {
+    selectedCommand.value = await fetchCommand(selectedCommand.value.commandId)
+  } catch {
+    // transient refresh failure: keep showing the last snapshot
+  }
+}
+
+watch([detailOpen, autoRefresh], ([open, enabled]) => {
+  if (detailTimer !== undefined) {
+    window.clearInterval(detailTimer)
+    detailTimer = undefined
+  }
+  if (open && enabled) {
+    detailTimer = window.setInterval(() => void refreshSelected(), 5000)
+  }
+})
+
+onUnmounted(() => {
+  if (detailTimer !== undefined) {
+    window.clearInterval(detailTimer)
+  }
+})
 
 async function loadCommands(options: { silent?: boolean } = {}) {
   if (!options.silent) {
@@ -246,5 +287,17 @@ onUnmounted(() => {
 <style scoped>
 .table-card {
   border-radius: 8px;
+}
+
+.drawer-toolbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.toolbar-label {
+  color: #595959;
+  font-size: 13px;
 }
 </style>

@@ -16,7 +16,10 @@
     </a-layout-sider>
     <a-layout>
       <a-layout-header class="app-header">
-        <div class="header-title">{{ route.meta.title ?? '' }}</div>
+        <a-breadcrumb>
+          <a-breadcrumb-item>{{ t('app.brand') }}</a-breadcrumb-item>
+          <a-breadcrumb-item v-if="route.meta.titleKey">{{ t(String(route.meta.titleKey)) }}</a-breadcrumb-item>
+        </a-breadcrumb>
         <a-space :size="12">
           <a-segmented
             :value="locale"

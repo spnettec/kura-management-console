@@ -179,6 +179,7 @@
       <a-tab-pane key="heartbeats" :tab="t('gateway.heartbeats')">
         <a-empty v-if="heartbeats.length === 0" :description="t('gateway.noHeartbeats')" />
         <template v-else>
+          <ResourceTrend :heartbeats="heartbeats" />
           <a-descriptions :column="4" size="small" bordered>
             <a-descriptions-item :label="t('gateway.fields.reportedAt')">{{ formatTime(heartbeats[0].ts) }}</a-descriptions-item>
             <a-descriptions-item :label="t('gateway.fields.status')">
@@ -229,6 +230,7 @@ import RefreshNotice from '@/components/RefreshNotice.vue'
 import NetworkStatusView, { type NetworkConfigPayload } from '@/components/NetworkStatusView.vue'
 import ConfigPanel from '@/components/ConfigPanel.vue'
 import SnapshotPanel from '@/components/SnapshotPanel.vue'
+import ResourceTrend from '@/components/ResourceTrend.vue'
 import { createCommand, fetchCommand, fetchCommands, type CommandListItem } from '@/api/commands'
 import {
   fetchGateway,

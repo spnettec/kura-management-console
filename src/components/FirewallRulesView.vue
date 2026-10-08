@@ -1,89 +1,93 @@
 <template>
   <section class="firewall-view">
-    <h3>{{ t('firewall.title') }}</h3>
-    <div class="firewall-summary">
-      <span>{{ t('firewall.enabled') }}: <strong>{{ config.enabled ? t('common.yes') : t('common.no') }}</strong></span>
-      <span>{{ t('firewall.running') }}: <strong>{{ config.running ? t('status.running') : t('status.inactive') }}</strong></span>
-      <span>{{ t('firewall.health') }}: <strong>{{ config.healthy ? t('status.normal') : t('status.abnormal') }}</strong></span>
-      <span>{{ t('firewall.packageInstalled') }}: <strong>{{ config.packageInstalled ? t('common.yes') : t('common.no') }}</strong></span>
-      <span>{{ t('firewall.serviceState') }}: <strong>{{ translateState(config.serviceState) }}</strong></span>
-      <span>{{ t('firewall.systemdState') }}: <strong>{{ translateState(config.systemdState) }}</strong></span>
-      <span>{{ t('firewall.collectedAt') }}: <strong>{{ formatTimestamp(config.collectedAt) }}</strong></span>
-      <span>{{ t('firewall.source') }}: <strong>{{ config.source || '-' }}</strong></span>
-      <span>{{ t('firewall.ruleTotals') }}: <strong>{{ totalRuleCount }}</strong></span>
-    </div>
-    <div v-if="config.errorMessage" class="state-box">{{ config.errorMessage }}</div>
-    <div v-if="config.healthMessage && !config.healthy" class="state-box">{{ config.healthMessage }}</div>
+    <a-descriptions :column="3" size="small" bordered class="firewall-summary">
+      <a-descriptions-item :label="t('firewall.enabled')">
+        <a-badge :status="config.enabled ? 'success' : 'default'" :text="config.enabled ? t('common.yes') : t('common.no')" />
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('firewall.running')">
+        <a-badge :status="config.running ? 'processing' : 'default'" :text="config.running ? t('status.running') : t('status.inactive')" />
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('firewall.health')">
+        <a-tag :color="config.healthy ? 'success' : 'error'">{{ config.healthy ? t('status.normal') : t('status.abnormal') }}</a-tag>
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('firewall.packageInstalled')">
+        {{ config.packageInstalled ? t('common.yes') : t('common.no') }}
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('firewall.serviceState')">{{ translateState(config.serviceState) }}</a-descriptions-item>
+      <a-descriptions-item :label="t('firewall.systemdState')">{{ translateState(config.systemdState) }}</a-descriptions-item>
+      <a-descriptions-item :label="t('firewall.ruleTotals')">
+        <a-tag color="blue">{{ totalRuleCount }}</a-tag>
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('firewall.source')">{{ config.source || '-' }}</a-descriptions-item>
+      <a-descriptions-item :label="t('firewall.collectedAt')">{{ formatTimestamp(config.collectedAt) }}</a-descriptions-item>
+    </a-descriptions>
+
+    <a-alert v-if="config.errorMessage" :message="config.errorMessage" type="error" show-icon style="margin-top: 12px" />
+    <a-alert v-if="config.healthMessage && !config.healthy" :message="config.healthMessage" type="warning" show-icon style="margin-top: 12px" />
 
     <div class="firewall-controls">
-      <div class="version-toggle" role="group" :aria-label="t('firewall.filters.ipVersion')">
-        <button
-          v-for="option in ipVersionOptions"
-          :key="option.value"
-          type="button"
-          :class="{ active: ipVersionFilter === option.value }"
-          @click="ipVersionFilter = option.value"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-      <label>
-        <span>{{ t('firewall.filters.table') }}</span>
-        <select v-model="tableFilter">
-          <option value="">{{ t('firewall.filters.allTables') }}</option>
-          <option v-for="tableName in tableOptions" :key="tableName" :value="tableName">{{ tableName }}</option>
-        </select>
-      </label>
-      <label class="search-control">
-        <span>{{ t('firewall.filters.search') }}</span>
-        <input v-model.trim="searchText" type="search" :placeholder="t('firewall.filters.searchPlaceholder')" />
-      </label>
+      <a-segmented v-model:value="ipVersionFilter" :options="ipVersionOptions" size="small" />
+      <a-select
+        v-model:value="tableFilter"
+        :placeholder="t('firewall.filters.allTables')"
+        allow-clear
+        size="small"
+        style="min-width: 160px"
+        :options="tableOptions.map((name) => ({ value: name, label: name }))"
+      />
+      <a-input-search
+        v-model:value="searchText"
+        :placeholder="t('firewall.filters.searchPlaceholder')"
+        size="small"
+        allow-clear
+      />
     </div>
 
-    <div v-if="visibleTableCount === 0" class="state-box">{{ t('firewall.noRules') }}</div>
+    <a-empty v-if="visibleTableCount === 0" :description="t('firewall.noRules')" style="padding: 24px" />
     <div v-for="ruleSet in visibleRuleSets" :key="ruleSet.ipVersion" class="ruleset">
-      <h4>{{ t(`firewall.${ruleSet.ipVersion}`, ruleSet.ipVersion) }}</h4>
-      <div v-if="ruleSet.tables.length === 0" class="state-box">{{ t('firewall.noRules') }}</div>
+      <a-divider content-position="left">
+        {{ t(`firewall.${ruleSet.ipVersion}`, ruleSet.ipVersion) }}
+      </a-divider>
       <section v-for="table in ruleSet.tables" :key="`${ruleSet.ipVersion}-${table.name}`" class="table-block">
         <div class="table-heading">
-          <h5>{{ table.name }}</h5>
-          <span>{{ t('firewall.ruleCount', { count: table.rules.length }) }}</span>
+          <a-tag color="geekblue">{{ table.name }}</a-tag>
+          <span class="table-meta">{{ t('firewall.ruleCount', { count: table.rules.length }) }}</span>
         </div>
-        <table v-if="table.chains.length > 0" class="chains-table">
-          <thead>
-            <tr>
-              <th>{{ t('firewall.fields.chain') }}</th>
-              <th>{{ t('firewall.fields.policy') }}</th>
-              <th>{{ t('firewall.fields.counters') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="chain in table.chains" :key="chain.name">
-              <td><code>{{ chain.name }}</code></td>
-              <td>{{ chain.policy || '-' }}</td>
-              <td><code>{{ chain.counters || '-' }}</code></td>
-            </tr>
-          </tbody>
-        </table>
-        <table class="rules-table">
-          <thead>
-            <tr>
-              <th>{{ t('firewall.fields.action') }}</th>
-              <th>{{ t('firewall.fields.chain') }}</th>
-              <th>{{ t('firewall.fields.expression') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(rule, index) in table.rules" :key="`${rule.action}-${rule.chain}-${index}`">
-              <td>{{ rule.action }}</td>
-              <td><code>{{ rule.chain }}</code></td>
-              <td><code>{{ rule.expression || '-' }}</code></td>
-            </tr>
-            <tr v-if="table.rules.length === 0">
-              <td colspan="3">{{ t('firewall.noRules') }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <a-table
+          v-if="table.chains.length > 0"
+          :data-source="table.chains"
+          :columns="chainColumns"
+          :pagination="false"
+          row-key="name"
+          size="small"
+          style="margin-bottom: 12px"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'name'"><code>{{ record.name }}</code></template>
+            <template v-else-if="column.key === 'policy'">{{ record.policy || '-' }}</template>
+            <template v-else-if="column.key === 'counters'"><code>{{ record.counters || '-' }}</code></template>
+          </template>
+        </a-table>
+        <a-table
+          :data-source="table.rules"
+          :columns="ruleColumns"
+          :pagination="false"
+          row-key="expression"
+          size="small"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'action'">
+              <a-tag :color="record.action === 'ACCEPT' ? 'success' : (record.action === 'DROP' ? 'error' : 'default')">
+                {{ record.action }}
+              </a-tag>
+            </template>
+            <template v-else-if="column.key === 'chain'"><code>{{ record.chain }}</code></template>
+            <template v-else-if="column.key === 'expression'"><code>{{ record.expression || '-' }}</code></template>
+          </template>
+          <template #emptyText>
+            <a-empty :description="t('firewall.noRules')" :image-style="{ height: '40px' }" />
+          </template>
+        </a-table>
       </section>
     </div>
   </section>
@@ -132,9 +136,21 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const ipVersionFilter = ref('')
-const tableFilter = ref('')
+const ipVersionFilter = ref<string>('')
+const tableFilter = ref<string | undefined>(undefined)
 const searchText = ref('')
+
+const chainColumns = computed(() => [
+  { title: t('firewall.fields.chain'), key: 'name', width: 140 },
+  { title: t('firewall.fields.policy'), key: 'policy', width: 110 },
+  { title: t('firewall.fields.counters'), key: 'counters' },
+])
+
+const ruleColumns = computed(() => [
+  { title: t('firewall.fields.action'), key: 'action', width: 90 },
+  { title: t('firewall.fields.chain'), key: 'chain', width: 130 },
+  { title: t('firewall.fields.expression'), key: 'expression' },
+])
 
 const ipVersionOptions = computed(() => [
   { value: '', label: t('firewall.filters.allIpVersions') },
@@ -156,12 +172,13 @@ const totalRuleCount = computed(() => props.config.parsedRules.reduce((sum, rule
 
 const visibleRuleSets = computed<FirewallRuleSet[]>(() => {
   const normalizedSearch = searchText.value.toLowerCase()
+  const tableSelection = tableFilter.value ?? ''
   return props.config.parsedRules
     .filter((ruleSet) => !ipVersionFilter.value || ruleSet.ipVersion === ipVersionFilter.value)
     .map((ruleSet) => ({
       ...ruleSet,
       tables: ruleSet.tables
-        .filter((table) => !tableFilter.value || table.name === tableFilter.value)
+        .filter((table) => !tableSelection || table.name === tableSelection)
         .map((table) => {
           if (!normalizedSearch) {
             return table
@@ -215,143 +232,37 @@ function translateState(value?: string | null) {
 
 <style scoped>
 .firewall-view {
-  border-top: 1px solid #e5e7eb;
-  margin-top: 16px;
-  padding-top: 16px;
-}
-
-.firewall-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.firewall-summary span {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 8px 10px;
+  margin-top: 4px;
 }
 
 .firewall-controls {
-  align-items: end;
-  display: grid;
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  grid-template-columns: auto minmax(140px, 180px) minmax(220px, 1fr);
-  margin-bottom: 14px;
-}
-
-.firewall-controls label {
-  color: #6b7280;
-  display: grid;
-  font-size: 12px;
-  gap: 4px;
-}
-
-.firewall-controls input,
-.firewall-controls select {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font: inherit;
-  min-height: 34px;
-  padding: 6px 8px;
-}
-
-.version-toggle {
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  display: inline-flex;
-  min-height: 34px;
-  overflow: hidden;
-}
-
-.version-toggle button {
-  background: #fff;
-  border: 0;
-  border-right: 1px solid #d1d5db;
-  color: #374151;
-  cursor: pointer;
-  font: inherit;
-  padding: 6px 10px;
-}
-
-.version-toggle button:last-child {
-  border-right: 0;
-}
-
-.version-toggle button.active {
-  background: #111827;
-  color: #fff;
+  margin: 12px 0;
 }
 
 .ruleset {
   display: grid;
   gap: 12px;
-  margin-top: 12px;
-}
-
-.table-block {
-  overflow: auto;
 }
 
 .table-heading {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   gap: 10px;
-  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
-.table-heading h5 {
-  margin: 0 0 8px;
-}
-
-.table-heading span {
+.table-meta {
   color: #6b7280;
   font-size: 12px;
-}
-
-.chains-table,
-.rules-table {
-  border-collapse: collapse;
-  margin-bottom: 12px;
-  width: 100%;
-}
-
-.chains-table th,
-.chains-table td,
-.rules-table th,
-.rules-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 8px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.chains-table th,
-.rules-table th {
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
 }
 
 code {
+  font-size: 12px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
-}
-
-@media (max-width: 760px) {
-  .firewall-controls {
-    grid-template-columns: 1fr;
-  }
-
-  .version-toggle {
-    width: 100%;
-  }
-
-  .version-toggle button {
-    flex: 1;
-  }
 }
 </style>

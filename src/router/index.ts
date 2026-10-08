@@ -11,15 +11,15 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', redirect: '/gateways' },
-    { path: '/login', component: LoginPage },
+    { path: '/login', component: LoginPage, meta: { titleKey: 'auth.signIn' } },
     {
       path: '/',
       component: AppLayout,
       children: [
-        { path: 'gateways', component: GatewayListPage },
-        { path: 'gateways/:gatewayId', component: GatewayDetailPage, props: true },
-        { path: 'commands', component: CommandListPage },
-        { path: 'commands/:commandId', component: CommandDetailPage, props: true },
+        { path: 'gateways', component: GatewayListPage, meta: { titleKey: 'gateway.listTitle' } },
+        { path: 'gateways/:gatewayId', component: GatewayDetailPage, props: true, meta: { titleKey: 'gateway.detailTitle' } },
+        { path: 'commands', component: CommandListPage, meta: { titleKey: 'command.title' } },
+        { path: 'commands/:commandId', component: CommandDetailPage, props: true, meta: { titleKey: 'command.detailTitle' } },
       ],
     },
   ],

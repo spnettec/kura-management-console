@@ -98,6 +98,7 @@ export const messages = {
       noHeartbeats: '暂无心跳',
       commands: '最近命令',
       noCommands: '暂无命令',
+      autoRefresh: '自动刷新',
       fields: {
         name: '名称',
         gatewayId: '网关 ID',
@@ -347,6 +348,7 @@ export const messages = {
       noHeartbeats: 'No heartbeats',
       commands: 'Recent Commands',
       noCommands: 'No commands',
+      autoRefresh: 'Auto refresh',
       fields: {
         name: 'Name',
         gatewayId: 'Gateway ID',

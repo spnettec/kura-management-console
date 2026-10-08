@@ -1,76 +1,74 @@
 <template>
   <section class="network-view">
-    <h3>{{ t('network.title') }}</h3>
-    <div class="network-summary">
-      <span>{{ t('network.hostname') }}: <strong>{{ config.hostname || '-' }}</strong></span>
-      <span>{{ t('network.collectedAt') }}: <strong>{{ formatTimestamp(config.collectedAt) }}</strong></span>
-      <span>{{ t('network.interfaces') }}: <strong>{{ config.interfaces.length }}</strong></span>
-      <span>{{ t('network.routes') }}: <strong>{{ config.routes.length }}</strong></span>
-      <span>{{ t('network.dns') }}: <strong>{{ config.dnsServers.join(', ') || '-' }}</strong></span>
-    </div>
-    <div v-if="config.errorMessage" class="state-box">{{ config.errorMessage }}</div>
+    <a-descriptions :column="3" size="small" bordered class="network-summary">
+      <a-descriptions-item :label="t('network.hostname')">
+        <a-tag>{{ config.hostname || '-' }}</a-tag>
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('network.interfaces')">
+        <a-tag color="blue">{{ config.interfaces.length }}</a-tag>
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('network.routes')">
+        <a-tag color="blue">{{ config.routes.length }}</a-tag>
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('network.dns')" :span="2">
+        {{ config.dnsServers.join(', ') || '-' }}
+      </a-descriptions-item>
+      <a-descriptions-item :label="t('network.collectedAt')">{{ formatTimestamp(config.collectedAt) }}</a-descriptions-item>
+    </a-descriptions>
 
-    <div class="network-grid">
-      <section>
-        <h4>{{ t('network.interfaces') }}</h4>
-        <table class="network-table">
-          <thead>
-            <tr>
-              <th>{{ t('network.fields.name') }}</th>
-              <th>{{ t('network.fields.state') }}</th>
-              <th>{{ t('network.fields.mac') }}</th>
-              <th>{{ t('network.fields.mtu') }}</th>
-              <th>{{ t('network.fields.addresses') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in config.interfaces" :key="item.name">
-              <td><code>{{ item.name }}</code></td>
-              <td>{{ item.up ? t('status.up') : t('status.down') }}</td>
-              <td><code>{{ item.macAddress || '-' }}</code></td>
-              <td>{{ item.mtu || '-' }}</td>
-              <td>
-                <div v-if="item.addresses.length > 0" class="address-list">
-                  <code v-for="address in item.addresses" :key="`${item.name}-${address.address}`">
-                    {{ address.address }} <span>{{ address.family }}</span>
-                  </code>
-                </div>
-                <span v-else>-</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+    <a-alert v-if="config.errorMessage" :message="config.errorMessage" type="error" show-icon style="margin-top: 12px" />
 
-      <section>
-        <h4>{{ t('network.routes') }}</h4>
-        <table class="network-table">
-          <thead>
-            <tr>
-              <th>{{ t('network.fields.destination') }}</th>
-              <th>{{ t('network.fields.gateway') }}</th>
-              <th>{{ t('network.fields.device') }}</th>
-              <th>{{ t('network.fields.source') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(route, index) in config.routes" :key="`${route.raw}-${index}`">
-              <td><code>{{ route.destination || '-' }}</code></td>
-              <td><code>{{ route.gateway || '-' }}</code></td>
-              <td><code>{{ route.device || '-' }}</code></td>
-              <td><code>{{ route.source || '-' }}</code></td>
-            </tr>
-            <tr v-if="config.routes.length === 0">
-              <td colspan="4">{{ t('common.noData') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-    </div>
+    <a-card size="small" :title="t('network.interfaces')" style="margin-top: 12px">
+      <a-table
+        :data-source="config.interfaces"
+        :columns="interfaceColumns"
+        :pagination="false"
+        row-key="name"
+        size="small"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'name'"><code>{{ record.name }}</code></template>
+          <template v-else-if="column.key === 'up'">
+            <a-badge :status="record.up ? 'success' : 'default'" :text="record.up ? t('status.up') : t('status.down')" />
+          </template>
+          <template v-else-if="column.key === 'macAddress'"><code>{{ record.macAddress || '-' }}</code></template>
+          <template v-else-if="column.key === 'mtu'">{{ record.mtu || '-' }}</template>
+          <template v-else-if="column.key === 'addresses'">
+            <div v-if="record.addresses.length > 0" class="address-list">
+              <code v-for="address in record.addresses" :key="`${record.name}-${address.address}`">
+                {{ address.address }} <span class="addr-family">{{ address.family }}</span>
+              </code>
+            </div>
+            <span v-else>-</span>
+          </template>
+        </template>
+      </a-table>
+    </a-card>
+
+    <a-card size="small" :title="t('network.routes')" style="margin-top: 12px">
+      <a-table
+        :data-source="config.routes"
+        :columns="routeColumns"
+        :pagination="{ pageSize: 10, hideOnSinglePage: true }"
+        :row-key="(_record: NetworkRoutePayload, index: number) => index"
+        size="small"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'destination'"><code>{{ record.destination || '-' }}</code></template>
+          <template v-else-if="column.key === 'gateway'"><code>{{ record.gateway || '-' }}</code></template>
+          <template v-else-if="column.key === 'device'"><code>{{ record.device || '-' }}</code></template>
+          <template v-else-if="column.key === 'source'"><code>{{ record.source || '-' }}</code></template>
+        </template>
+        <template #emptyText>
+          <a-empty :description="t('common.noData')" :image-style="{ height: '40px' }" />
+        </template>
+      </a-table>
+    </a-card>
   </section>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 export interface NetworkAddressPayload {
@@ -117,6 +115,21 @@ defineProps<{
 
 const { t } = useI18n()
 
+const interfaceColumns = computed(() => [
+  { title: t('network.fields.name'), key: 'name', width: 110 },
+  { title: t('network.fields.state'), key: 'up', width: 90 },
+  { title: t('network.fields.mac'), key: 'macAddress', width: 150 },
+  { title: t('network.fields.mtu'), dataIndex: 'mtu', key: 'mtu', width: 80 },
+  { title: t('network.fields.addresses'), key: 'addresses' },
+])
+
+const routeColumns = computed(() => [
+  { title: t('network.fields.destination'), key: 'destination', width: 180 },
+  { title: t('network.fields.gateway'), key: 'gateway', width: 150 },
+  { title: t('network.fields.device'), key: 'device', width: 110 },
+  { title: t('network.fields.source'), key: 'source', width: 150 },
+])
+
 function formatTimestamp(value?: string | number | null) {
   if (!value) {
     return '-'
@@ -127,48 +140,7 @@ function formatTimestamp(value?: string | number | null) {
 
 <style scoped>
 .network-view {
-  border-top: 1px solid #e5e7eb;
-  margin-top: 16px;
-  padding-top: 16px;
-}
-
-.network-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.network-summary span {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 8px 10px;
-}
-
-.network-grid {
-  display: grid;
-  gap: 16px;
-}
-
-.network-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.network-table th,
-.network-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 8px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.network-table th {
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
+  margin-top: 4px;
 }
 
 .address-list {
@@ -177,11 +149,12 @@ function formatTimestamp(value?: string | number | null) {
 }
 
 code {
+  font-size: 12px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
-code span {
-  color: #6b7280;
+.addr-family {
+  color: #8c8c8c;
 }
 </style>
